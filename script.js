@@ -154,7 +154,7 @@ class GameBoard {
       }
     }
 
-    // Generate Panels
+    // Generate Panels + Bombs
     let counter = 0;
     for (let i = 1; i < this.columns + 1; i++) {
       const canvasX = i * panelWidth;
@@ -170,6 +170,14 @@ class GameBoard {
         }
         this.board.push({x: i, y: j, panel});
         counter ++;
+      }
+    }
+
+    // Label Panels
+    for (let i = 0; i < this.board.length; i++) {
+      const panel = this.board[i];
+      if (panel.panel.type !== "B") {
+        panel.panel.type = this.countAdjacentBombs(panel.x, panel.y);
       }
     }
   }
@@ -189,20 +197,26 @@ class GameBoard {
           if (panel.flag || panel.uncovered) {
             return;
           }
+          this.pressPanel(i);
 
-          if (panel.type === "B") {
-            this.handleGameOver();
-          } else {
-            // Check for adjacent bomb
-            this.panelsUncovered++;
-            panel.type = this.countAdjacentBombs(this.board[i].x, this.board[i].y);
-            if (this.panelsUncovered === this.board.length - this.bombIndex.length) {
-              this.handleWin();
-            }
+          if (this.panelsUncovered === this.board.length - this.bombIndex.length) {
+            this.handleWin();
           }
-          panel.pressed();
         }
       }
+    }
+  }
+
+  pressPanel(index) {
+    const panel = this.board[index].panel;
+    panel.pressed();
+    if (panel.type === "B") {
+      this.handleGameOver();
+      return;
+    }
+    this.panelsUncovered ++;
+    if (panel.type === 0) {
+      this.uncoverAdjacentPanels(index);
     }
   }
 
@@ -217,6 +231,39 @@ class GameBoard {
       ) {
         if (panel.uncovered !== true) {
           panel.toggleFlag();
+        }
+      }
+    }
+  }
+
+  uncoverAdjacentPanels(boardIndex) {
+    const topLeft = boardIndex - this.rows - 1;
+    const top = boardIndex - 1;
+    const topRight = boardIndex + this.rows -1;
+    const left = boardIndex - this.rows;
+    const right = boardIndex + this.rows;
+    const bottomLeft = boardIndex - this.rows + 1;
+    const bottom = boardIndex + 1;
+    const bottomRight = boardIndex + this.rows + 1;
+
+    let adjacentPanels = [topLeft, top, topRight, left, right, bottomLeft, bottom, bottomRight];
+
+    // If top row
+    if (boardIndex % this.rows === 0) {
+      adjacentPanels = [left, right, bottomLeft, bottom, bottomRight];
+      // If bottom row
+    } else if (boardIndex % this.rows - (this.rows - 1) === 0) {
+      adjacentPanels = [topLeft, top, topRight, left, right];
+    }
+    this.uncoverPanels(adjacentPanels);
+  }
+
+  uncoverPanels(panels) {
+    for (let i = 0; i < panels.length; i++) {
+      const panel = this.board[panels[i]];
+      if (panel) {
+        if (!panel.panel.uncovered) {
+          this.pressPanel(panels[i]);
         }
       }
     }
@@ -268,9 +315,9 @@ class GameBoard {
 }
 
 const panelWidth = 50;
-const bombs = 25;
+const bombs = 16;
 
-const gameboard = new GameBoard(10, 13, panelWidth, bombs);
+const gameboard = new GameBoard(10, 10, panelWidth, bombs);
 
 function init() {
   gameboard.draw();
