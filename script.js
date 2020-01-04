@@ -3,29 +3,6 @@ c.width = document.body.clientWidth;
 c.height = document.body.clientHeight;
 var ctx = c.getContext("2d");
 
-// Rect
-// ctx.fillRect(100, 100, 50, 100);
-// ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
-// ctx.fillRect(200, 75, 200, 100);
-
-// Line
-// ctx.beginPath();
-// ctx.moveTo(50, 300);
-// ctx.lineTo(2, 324);
-// ctx.lineTo(400, 300);
-// ctx.strokeStyle = "blue";
-// ctx.stroke();
-
-// Arc / Circle
-
-// pi / 180 radians = 1 degree
-// 1 radian = 180 / pi degrees
-// ctx.beginPath();
-// ctx.arc(300, 300, 50, 0, Math.PI * 2, false);
-// ctx.arc(500, 500, 50, 0, Math.PI, false);
-// ctx.arc(100, 500, 50, Math.PI * 2, Math.PI, true);
-// ctx.stroke();
-
 var mouse = {
   x: 0,
   y: 0
@@ -90,6 +67,12 @@ window.addEventListener('click',
   }
 )
 
+window.addEventListener('contextmenu', function(ev) {
+  ev.preventDefault();
+  gameboard.rightClicked();
+  return false;
+}, false)
+
 
 function animate() {
   requestAnimationFrame(animate);
@@ -102,42 +85,62 @@ class Panel {
     this.x = x,
     this.y = y,
     this.width = width,
-    this.type = type || 0
+    this.type = type || 0,
+    this.flag = false,
+    this.uncovered = false
   }
 
   draw() {
-    drawPanel(this.x, this.y, this.width, this.width, this.color);
+    let color = this.color;
+    if (this.uncovered) {
+      color = colors[0];
+    }
+    drawPanel(this.x, this.y, this.width, this.width, color);
+    // Symbols
+    if (this.flag) {
+      this.drawSymbol("F");
+    } else if (this.uncovered && this.type !== 0) {
+      this.drawSymbol(this.type);
+    }
   }
 
-  reset(color) {
-    this.color = color;
+  drawSymbol(symbol) {
+    ctx.fillStyle = "#000000";
+    ctx.font = "24px Arial";
+    ctx.fillText(symbol, this.x + 15, this.y + this.width - 15);
+  }
+
+  toggleFlag() {
+    this.flag = !this.flag;
+    this.draw();
+  }
+
+  reset() {
     this.type = 0;
+    this.flag = false;
+    this.uncovered = false;
     this.draw();
   }
 
   pressed() {
-    this.color = colors[0];
-    
+    this.uncovered = true;
     this.draw();
-    if (this.type !== 0) {
-      ctx.fillStyle = "#000000";
-      ctx.font = "24px Arial";
-      ctx.fillText(this.type, this.x + 15, this.y + this.width - 15);
-    }
   }
 }
 
 class GameBoard {
   constructor(rows, columns, panelWidth, bombs) {
+    this.panelWidth = panelWidth;
     this.columns = columns;
     this.rows = rows;
     this.panelColor = colors[1];
+    this.panelsUncovered = 0;
 
     this.board = [];
     this.bombIndex = [];
     this.gameOver = false;
 
-    this.generateBoard(panelWidth, bombs);
+    this.generateBoard(this.panelWidth, bombs);
   }
 
   generateBoard(panelWidth, bombs) {
@@ -183,13 +186,37 @@ class GameBoard {
           mouse.y > panel.y &&
           mouse.y < panel.y + panel.width
         ) {
+          if (panel.flag || panel.uncovered) {
+            return;
+          }
+
           if (panel.type === "B") {
             this.handleGameOver();
           } else {
             // Check for adjacent bomb
+            this.panelsUncovered++;
             panel.type = this.countAdjacentBombs(this.board[i].x, this.board[i].y);
+            if (this.panelsUncovered === this.board.length - this.bombIndex.length) {
+              this.handleWin();
+            }
           }
           panel.pressed();
+        }
+      }
+    }
+  }
+
+  rightClicked() {
+    for (let i = 0; i < this.board.length; i++) {
+      const panel = this.board[i].panel;
+      if (
+        mouse.x > panel.x &&
+        mouse.x < panel.x + panel.width &&
+        mouse.y > panel.y &&
+        mouse.y < panel.y + panel.width
+      ) {
+        if (panel.uncovered !== true) {
+          panel.toggleFlag();
         }
       }
     }
@@ -198,10 +225,11 @@ class GameBoard {
   resetBoard() {
     this.gameOver = false;
     for (let i = 0; i < this.board.length; i++) {
-      this.board[i].panel.reset(this.panelColor);
+      this.board[i].panel.reset();
     }
     this.board = [];
     this.bombIndex = [];
+    this.panelsUncovered = 0;
     this.generateBoard(panelWidth, bombs);
   }
 
@@ -209,7 +237,14 @@ class GameBoard {
     this.gameOver = true;
     ctx.fillStyle = "#000000";
     ctx.font = "48px Arial";
-    ctx.fillText("GAME OVER", this.columns * this.panelWidth / 2, this.rows * this.panelWidth / 2);
+    ctx.fillText("GAME OVER", this.columns * this.panelWidth / 3, this.rows * this.panelWidth / 3);
+  }
+
+  handleWin() {
+    this.gameOver = true;
+    ctx.fillStyle = "#000000";
+    ctx.font = "48px Arial";
+    ctx.fillText("GAME WON", this.columns * this.panelWidth / 3, this.rows * this.panelWidth / 3);
   }
 
   countAdjacentBombs(x, y) {
@@ -233,7 +268,7 @@ class GameBoard {
 }
 
 const panelWidth = 50;
-const bombs = 20;
+const bombs = 25;
 
 const gameboard = new GameBoard(10, 13, panelWidth, bombs);
 
