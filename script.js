@@ -175,9 +175,9 @@ class GameBoard {
 
     // Label Panels
     for (let i = 0; i < this.board.length; i++) {
-      const panel = this.board[i];
-      if (panel.panel.type !== "B") {
-        panel.panel.type = this.countAdjacentBombs(panel.x, panel.y);
+      const panel = this.board[i].panel;
+      if (panel.type !== "B") {
+        panel.type = this.countBombs(this.getAdjacentPanels(i));
       }
     }
   }
@@ -216,7 +216,7 @@ class GameBoard {
     }
     this.panelsUncovered ++;
     if (panel.type === 0) {
-      this.uncoverAdjacentPanels(index);
+      this.uncoverPanels(this.getAdjacentPanels(index));
     }
   }
 
@@ -236,7 +236,7 @@ class GameBoard {
     }
   }
 
-  uncoverAdjacentPanels(boardIndex) {
+  getAdjacentPanels(boardIndex) {
     const topLeft = boardIndex - this.rows - 1;
     const top = boardIndex - 1;
     const topRight = boardIndex + this.rows -1;
@@ -255,7 +255,7 @@ class GameBoard {
     } else if (boardIndex % this.rows - (this.rows - 1) === 0) {
       adjacentPanels = [topLeft, top, topRight, left, right];
     }
-    this.uncoverPanels(adjacentPanels);
+    return(adjacentPanels);
   }
 
   uncoverPanels(panels) {
@@ -294,12 +294,13 @@ class GameBoard {
     ctx.fillText("GAME WON", this.columns * this.panelWidth / 3, this.rows * this.panelWidth / 3);
   }
 
-  countAdjacentBombs(x, y) {
+  countBombs(panels) {
     let count = 0;
-    for (let i = 0; i < this.bombIndex.length; i++) {
-      if (this.bombIndex[i].x === x - 1 || this.bombIndex[i].x === x || this.bombIndex[i].x === x + 1) {
-        if (this.bombIndex[i].y === y - 1 || this.bombIndex[i].y === y || this.bombIndex[i].y === y + 1) {
-          count++
+    for (let i = 0; i < panels.length; i++) {
+      const panel = this.board[panels[i]];
+      if (panel) {
+        if (panel.panel.type === "B") {
+          count ++;
         }
       }
     }
@@ -315,9 +316,9 @@ class GameBoard {
 }
 
 const panelWidth = 50;
-const bombs = 16;
+const bombs = 40;
 
-const gameboard = new GameBoard(10, 10, panelWidth, bombs);
+const gameboard = new GameBoard(10, 20, panelWidth, bombs);
 
 function init() {
   gameboard.draw();
